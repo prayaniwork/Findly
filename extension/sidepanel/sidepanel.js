@@ -23,9 +23,12 @@ import {
   trackCompareOpened,
   trackStoreClicked
 } from '../lib/analytics.js';
-import { getLiveStoreUrl } from '../lib/urls.js';
+import { getLiveStoreUrl, resolveStoreUrl } from '../lib/urls.js';
+
+export { resolveStoreUrl };
 
 // --- State Variables ---
+let baseCatalog = [];
 let catalog = [];
 let activeState = 'idle';
 let previousState = 'idle';
@@ -90,15 +93,25 @@ async function init() {
   // Load catalog
   try {
     const res = await fetch('../data/products.json');
-    catalog = await res.json();
+    const rawData = await res.json();
+    baseCatalog = rawData.map(p => ({
+      ...p,
+      productUrl: resolveStoreUrl(p)
+    }));
+    catalog = [...baseCatalog];
   } catch (err) {
     console.error('[Findly] Error loading products catalog:', err);
+    baseCatalog = [];
     catalog = [];
   }
 
-  // Load settings & saved products
+  // Load settings & saved products (sanitizing URLs)
   activeSettings = await getSettings();
-  savedProductsList = await getSavedProducts();
+  const rawSaved = await getSavedProducts();
+  savedProductsList = rawSaved.map(p => ({
+    ...p,
+    productUrl: resolveStoreUrl(p)
+  }));
   updateSavedBadge();
   syncSettingsUI();
 
@@ -185,10 +198,20 @@ async function handleNewImageSearch(searchData) {
     });
     currentAnalysis = analysis;
 
-    // Merge live Google Lens visual matches into catalog if available
+    // Fresh catalog per search: If live Google Lens/Shopping visual matches exist, use them directly
     if (analysis.visualMatches && Array.isArray(analysis.visualMatches) && analysis.visualMatches.length > 0) {
-      const newItems = analysis.visualMatches.filter(vm => !catalog.some(c => c.id === vm.id));
-      catalog = [...newItems, ...catalog];
+      catalog = analysis.visualMatches.map(m => ({
+        ...m,
+        productUrl: resolveStoreUrl(m)
+      }));
+    } else {
+      // Filter baseCatalog to relevant category so unrelated items (e.g. lamps, watches) never appear
+      const relevantCategory = analysis.category || 'Fashion';
+      const filtered = baseCatalog.filter(p => !p.category || p.category.toLowerCase() === relevantCategory.toLowerCase());
+      catalog = (filtered.length > 0 ? filtered : baseCatalog).map(p => ({
+        ...p,
+        productUrl: resolveStoreUrl(p)
+      }));
     }
 
     // 2. Progressive attribute reveals animation
@@ -359,7 +382,7 @@ function renderClosestMatchCard(product) {
       </div>
 
       <div class="closest-match-footer">
-        <button class="btn-shadcn-primary flex-1 btn-view-store" data-url="${getLiveStoreUrl(product)}" data-id="${product.id}">
+        <button class="btn-shadcn-primary flex-1 btn-view-store" data-url="${resolveStoreUrl(product)}" data-id="${product.id}">
           <span>Visit ${product.store}</span>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
             <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
@@ -496,7 +519,7 @@ function renderProductGrid(products, bestMatch) {
             ` : ''}
           </div>
 
-          <button class="btn-shadcn-outline btn-card-store btn-view-store" data-url="${getLiveStoreUrl(p)}" data-id="${p.id}">
+          <button class="btn-shadcn-outline btn-card-store btn-view-store" data-url="${resolveStoreUrl(p)}" data-id="${p.id}">
             <span>Visit store</span>
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
@@ -511,7 +534,7 @@ function renderProductGrid(products, bestMatch) {
 
 // --- Product Detail View ---
 function openProductDetail(productId) {
-  const product = currentProducts.find(p => p.id === productId) || catalog.find(p => p.id === productId) || (currentBestMatch?.id === productId ? currentBestMatch : null);
+  const product = currentProducts.find(p => p.id === productId) || catalog.find(p => p.id === productId) || (currentBestMatch?.id === productId ? currentBestMatch : null) || savedProductsList.find(p => p.id === productId);
   if (!product) return;
 
   activeDetailProduct = product;
@@ -539,8 +562,10 @@ function openProductDetail(productId) {
     '✓ Similar material'
   ];
 
+  const storeUrl = resolveStoreUrl(product);
+
   container.innerHTML = `
-    <div class="detail-image-wrap">
+    <div class="detail-image-wrap btn-view-store" data-url="${storeUrl}" data-id="${product.id}" title="Click to view product on ${product.store}" style="cursor: pointer;">
       <img src="${product.image}" alt="${product.name}" class="detail-image">
     </div>
 
@@ -552,7 +577,9 @@ function openProductDetail(productId) {
       <h2 class="detail-product-name">${product.name}</h2>
       <div class="detail-price-box">
         <span class="detail-price">₹${product.price.toLocaleString('en-IN')}</span>
-        <span class="price-original">₹${product.originalPrice.toLocaleString('en-IN')}</span>
+        ${product.originalPrice && product.originalPrice > product.price ? `
+          <span class="price-original">₹${product.originalPrice.toLocaleString('en-IN')}</span>
+        ` : ''}
       </div>
     </div>
 
@@ -570,18 +597,21 @@ function openProductDetail(productId) {
 
     <div class="detail-section">
       <div class="detail-section-title">Available on</div>
-      <div class="available-store-card">
+      <div class="available-store-card btn-view-store" data-url="${storeUrl}" data-id="${product.id}" role="button" tabindex="0" title="Visit ${product.store}" style="cursor: pointer;">
         <div class="available-store-info">
           <span class="available-store-name">${product.store}</span>
           <span class="available-store-delivery">Standard delivery: ${product.delivery || '2-3 business days'}</span>
         </div>
-        <span class="price-current">₹${product.price.toLocaleString('en-IN')}</span>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span class="price-current">₹${product.price.toLocaleString('en-IN')}</span>
+          <span style="font-size: 11px; color: var(--accent-purple); font-weight: 500;">Visit store ↗</span>
+        </div>
       </div>
     </div>
 
     <div class="detail-ctas">
-      <button class="btn-primary flex-1 btn-view-store" data-url="${getLiveStoreUrl(product)}" data-id="${product.id}">
-        View product
+      <button class="btn-primary flex-1 btn-view-store" data-url="${storeUrl}" data-id="${product.id}">
+        <span>Visit ${product.store}</span>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
           <polyline points="15 3 21 3 21 9"/>
@@ -718,8 +748,8 @@ function renderCompareTable() {
       label: 'Action',
       queryVal: '<span style="font-size: 11px; color: var(--text-muted);">Query Item</span>',
       render: p => `
-        <button class="btn-shadcn-primary w-full btn-view-store" data-url="${getLiveStoreUrl(p)}" data-id="${p.id}" style="padding: 6px 8px; font-size: 11px;">
-          View product
+        <button class="btn-shadcn-primary w-full btn-view-store" data-url="${resolveStoreUrl(p)}" data-id="${p.id}" style="padding: 6px 8px; font-size: 11px;">
+          Visit ${p.store}
         </button>
       `
     }
@@ -779,8 +809,12 @@ async function toggleSaveProduct(productId) {
   if (isSaved) {
     savedProductsList = await removeSavedProduct(productId);
   } else if (product) {
-    savedProductsList = await saveProduct(product);
-    trackProductSaved(product);
+    const productToSave = {
+      ...product,
+      productUrl: resolveStoreUrl(product)
+    };
+    savedProductsList = await saveProduct(productToSave);
+    trackProductSaved(productToSave);
   }
 
   updateSavedBadge();
@@ -838,8 +872,8 @@ function renderFindsList() {
         <div class="saved-item-price">₹${p.price.toLocaleString('en-IN')}</div>
       </div>
       <div class="saved-item-actions">
-        <button class="btn-secondary btn-view-store" data-url="${getLiveStoreUrl(p)}" data-id="${p.id}" style="padding: 5px 10px; font-size: 11px;">
-          View
+        <button class="btn-secondary btn-view-store" data-url="${resolveStoreUrl(p)}" data-id="${p.id}" style="padding: 5px 10px; font-size: 11px;">
+          Visit ${p.store}
         </button>
         <button class="btn-text btn-remove-saved" data-id="${p.id}" style="color: var(--text-muted);">
           Remove
@@ -1045,14 +1079,23 @@ function setupEventListeners() {
     const storeBtn = e.target.closest('.btn-view-store');
     if (storeBtn) {
       e.stopPropagation();
-      let url = storeBtn.getAttribute('data-url');
       const id = storeBtn.getAttribute('data-id');
-      const product = currentProducts.find(p => p.id === id) || catalog.find(p => p.id === id) || (currentBestMatch?.id === id ? currentBestMatch : null);
+      const product = (id ? (currentProducts.find(p => p.id === id) || catalog.find(p => p.id === id) || (currentBestMatch?.id === id ? currentBestMatch : null) || savedProductsList.find(p => p.id === id)) : null) || activeDetailProduct;
+      
       trackStoreClicked(product);
+
+      let url = resolveStoreUrl(product);
       if (!url || url.includes('example.com')) {
-        url = getLiveStoreUrl(product);
+        const rawUrl = storeBtn.getAttribute('data-url');
+        if (rawUrl && !rawUrl.includes('example.com')) {
+          url = rawUrl;
+        } else {
+          url = 'https://www.amazon.in';
+        }
       }
-      if (url) window.open(url, '_blank', 'noopener,noreferrer');
+      if (url) {
+        window.open(url, '_blank', 'noopener,noreferrer');
+      }
       return;
     }
 

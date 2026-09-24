@@ -92,11 +92,8 @@ export function calculateMatchScore(
   });
 
   const tagFactor = Math.min(1, tagMatches / Math.max(1, qTags.length * 0.4));
-  visualScore += tagFactor * 35;
-
-  const idNum = parseInt(product.id.replace(/\D/g, '') || '0', 10);
-  visualScore += (idNum % 6);
-  visualScore = Math.min(60, Math.max(25, visualScore));
+  visualScore += Math.round(tagFactor * 40);
+  visualScore = Math.min(60, Math.max(20, visualScore));
 
   let totalScore = Math.round(categoryScore + attrScore + priceScore + visualScore);
   totalScore = Math.min(98, Math.max(62, totalScore));

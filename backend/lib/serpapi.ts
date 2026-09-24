@@ -167,6 +167,10 @@ export async function searchWithGoogleShopping(query: string): Promise<Product[]
       const priceNum = item.extracted_price || 1299;
       const storeName = detectStoreFromUrl(item.source || item.link || '');
 
+      const validLink = (item.link && !item.link.includes('example.com'))
+        ? item.link
+        : getStoreSearchFallback(storeName, item.title || query);
+
       return {
         id: `serp_shop_${idx}_${Date.now()}`,
         name: item.title || query,
@@ -181,7 +185,7 @@ export async function searchWithGoogleShopping(query: string): Promise<Product[]
         rating: item.rating || 4.4,
         delivery: '2-4 business days',
         image: item.thumbnail || '',
-        productUrl: item.link || 'https://amazon.in',
+        productUrl: validLink,
         color: 'Multicolor',
         material: 'Standard',
         fit: 'Regular',
