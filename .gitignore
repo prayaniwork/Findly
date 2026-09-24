@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+
+# Secrets & Environment variables (NEVER COMMIT)
+.env
+.env*.local
+.env.local
+*.pem
+*.key
+*.cert
+secrets.json
+
+# Next.js build
+.next/
+backend/.next/
+
+# OS files
+.DS_Store
+Thumbs.db

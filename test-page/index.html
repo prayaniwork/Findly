@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aura — Curated Fashion & Design (Findly Testbed)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Top Navigation -->
+  <header class="navbar">
+    <div class="nav-container">
+      <div class="nav-brand">AURA</div>
+      <nav class="nav-links">
+        <a href="#fashion" class="active">Apparel</a>
+        <a href="#accessories">Accessories</a>
+        <a href="#home">Home & Living</a>
+        <a href="#beauty">Skincare</a>
+      </nav>
+      <div class="nav-meta">
+        <span class="testbed-badge">Findly Test Page</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Testing Guide Notice -->
+  <div id="file-protocol-notice" class="test-notice-bar" style="display: none;">
+    <div class="notice-content">
+      <strong>⚠️ Testing via <code>file://</code> URL:</strong> In Chrome, content scripts on local files require turning on <em>"Allow access to file URLs"</em> under <code>chrome://extensions</code> &gt; <strong>Findly</strong> &gt; <strong>Details</strong>. Or test via <code>http://localhost:8080/test-page/index.html</code> (run <code>npm run testbed</code>).
+    </div>
+  </div>
+
+  <!-- Hero Section -->
+  <section class="hero-section">
+    <div class="hero-content">
+      <span class="hero-tag">Findly Shopping Assistant Testbed</span>
+      <h1 class="hero-title">Timeless silhouettes, tactile linen & sculptural essentials</h1>
+      <p class="hero-desc">
+        Hover over any product image to see <strong>Findly's "🔍 Find similar"</strong> button, right-click any image for the Findly context menu, or click <strong>"Select an item"</strong> in the Findly extension popup.
+      </p>
+    </div>
+  </section>
+
+  <!-- Main Feed / Pinterest-style Grid -->
+  <main class="gallery-container">
+    <div class="masonry-grid">
+      <!-- Item 1: Linen Dress -->
+      <article class="feed-card" id="fashion">
+        <div class="img-container">
+          <img src="https://images.unsplash.com/photo-1595777457583-95e059d581b8?auto=format&fit=crop&w=800&q=80" alt="White Pure Linen Wrap Midi Dress" class="product-img">
+        </div>
+        <div class="card-caption">
+          <h3>White Pure Linen Wrap Midi Dress</h3>
+          <p class="caption-price">Editorial Pick • Resort Wear</p>
+        </div>
+      </article>
+
+      <!-- Item 2: Leather Tote Bag -->
+      <article class="feed-card" id="accessories">
+        <div class="img-container">
+          <img src="https://images.unsplash.com/photo-1548036328-c9fa89d128fa?auto=format&fit=crop&w=800&q=80" alt="Structured Italian Leather Day Tote" class="product-img">
+        </div>
+        <div class="card-caption">
+          <h3>Structured Italian Leather Day Tote</h3>
+          <p class="caption-price">Cognac Tan • Vegetable Tanned</p>
+        </div>
+      </article>
+
+      <!-- Item 3: Ceramic Fluted Lamp -->
+      <article class="feed-card" id="home">
+        <div class="img-container">
+          <img src="https://images.unsplash.com/photo-1507473885765-e6ed057f782c?auto=format&fit=crop&w=800&q=80" alt="Fluted Ceramic Table Lamp with Linen Shade" class="product-img">
+        </div>
+        <div class="card-caption">
+          <h3>Fluted Ceramic Table Lamp</h3>
+          <p class="caption-price">Sculptural Stoneware • Nordic Glow</p>
+        </div>
+      </article>
+
+      <!-- Item 4: Minimalist Bauhaus Watch -->
+      <article class="feed-card">
+        <div class="img-container">
+          <img src="https://images.unsplash.com/photo-1524805444758-089113d48a6d?auto=format&fit=crop&w=800&q=80" alt="Bauhaus Mesh Chronograph Analog Watch" class="product-img">
+        </div>
+        <div class="card-caption">
+          <h3>Bauhaus Mesh Chronograph</h3>
+          <p class="caption-price">Steel Mesh • 38mm Dial</p>
+        </div>
+      </article>
+
+      <!-- Item 5: Floral Print Midi Dress -->
+      <article class="feed-card">
+        <div class="img-container">
+          <img src="https://images.unsplash.com/photo-1572804013309-59a88b7e92f1?auto=format&fit=crop&w=800&q=80" alt="French Meadow Floral Chiffon Midi Dress" class="product-img">
+        </div>
+        <div class="card-caption">
+          <h3>Meadow Floral Chiffon Midi</h3>
+          <p class="caption-price">Puff Sleeve • Cottagecore</p>
+        </div>
+      </article>
+
+      <!-- Item 6: Clean White Sneakers -->
+      <article class="feed-card">
+        <div class="img-container">
+          <img src="https://images.unsplash.com/photo-1549298916-b41d501d3772?auto=format&fit=crop&w=800&q=80" alt="Full Grain Leather Minimal Court Sneakers" class="product-img">
+        </div>
+        <div class="card-caption">
+          <h3>Minimal Leather Court Sneakers</h3>
+          <p class="caption-price">Full Grain • Off-White</p>
+        </div>
+      </article>
+
+      <!-- Item 7: Black Satin Slip Dress -->
+      <article class="feed-card">
+        <div class="img-container">
+          <img src="https://images.unsplash.com/photo-1539008835657-9e8e9680c956?auto=format&fit=crop&w=800&q=80" alt="Silk Satin Cowl Neck Black Slip Dress" class="product-img">
+        </div>
+        <div class="card-caption">
+          <h3>Silk Satin Cowl Neck Slip Dress</h3>
+          <p class="caption-price">90s Evening Minimalist</p>
+        </div>
+      </article>
+
+      <!-- Item 8: Vitamin C Glow Serum -->
+      <article class="feed-card" id="beauty">
+        <div class="img-container">
+          <img src="https://images.unsplash.com/photo-1620916566398-39f1143ab7be?auto=format&fit=crop&w=800&q=80" alt="15% Vitamin C + Ferulic Brightening Face Serum" class="product-img">
+        </div>
+        <div class="card-caption">
+          <h3>Vitamin C Brightening Serum</h3>
+          <p class="caption-price">Active Botanical Complex</p>
+        </div>
+      </article>
+
+      <!-- Item 9: Vintage Raw Denim Trucker Jacket -->
+      <article class="feed-card">
+        <div class="img-container">
+          <img src="https://images.unsplash.com/photo-1576995853123-5a10305d93c0?auto=format&fit=crop&w=800&q=80" alt="Vintage Raw Indigo Denim Trucker Jacket" class="product-img">
+        </div>
+        <div class="card-caption">
+          <h3>Raw Indigo Denim Trucker Jacket</h3>
+          <p class="caption-price">100% Cotton • Rigid Denim</p>
+        </div>
+      </article>
+
+      <!-- Item 10: Stoneware Donut Art Vase -->
+      <article class="feed-card">
+        <div class="img-container">
+          <img src="https://images.unsplash.com/photo-1612196808214-b8e1d6145a8c?auto=format&fit=crop&w=800&q=80" alt="Hollow Geometric Sandstone Ceramic Vase" class="product-img">
+        </div>
+        <div class="card-caption">
+          <h3>Hollow Geometric Ceramic Vase</h3>
+          <p class="caption-price">Sandstone Beige • Sculptural Art</p>
+        </div>
+      </article>
+
+      <!-- Item 11: Classic Camel Trench Coat -->
+      <article class="feed-card">
+        <div class="img-container">
+          <img src="https://images.unsplash.com/photo-1544441893-675973e31985?auto=format&fit=crop&w=800&q=80" alt="Double-Breasted Belted Camel Trench Coat" class="product-img">
+        </div>
+        <div class="card-caption">
+          <h3>Classic Double-Breasted Trench</h3>
+          <p class="caption-price">Camel Tan Gabardine</p>
+        </div>
+      </article>
+
+      <!-- Item 12: Tortoiseshell Retro Sunglasses -->
+      <article class="feed-card">
+        <div class="img-container">
+          <img src="https://images.unsplash.com/photo-1511499767150-a48a237f0083?auto=format&fit=crop&w=800&q=80" alt="Retro Square Acetate Tortoiseshell Sunglasses" class="product-img">
+        </div>
+        <div class="card-caption">
+          <h3>Retro Tortoiseshell Acetate Frames</h3>
+          <p class="caption-price">UV400 Polarized</p>
+        </div>
+      </article>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <p>Aura Moodboard • Visual Shopping Testbed for <strong>Findly Chrome Extension</strong></p>
+  </footer>
+
+  <script>
+    if (window.location.protocol === 'file:') {
+      const notice = document.getElementById('file-protocol-notice');
+      if (notice) notice.style.display = 'block';
+    }
+  </script>
+</body>
+</html>

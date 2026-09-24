@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Findly</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <!-- Header -->
+    <header class="popup-header">
+      <div class="brand">
+        <span class="brand-lens">🔍</span>
+        <span class="brand-name">FINDLY</span>
+      </div>
+      <div class="status-indicator">
+        <span class="status-dot"></span>
+        <span class="status-text">Active</span>
+      </div>
+    </header>
+
+    <!-- Main Action -->
+    <div class="popup-action-section">
+      <button id="btn-popup-select" class="btn-popup-primary">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="9"/>
+          <line x1="12" y1="3" x2="12" y2="7"/>
+          <line x1="12" y1="17" x2="12" y2="21"/>
+          <line x1="3" y1="12" x2="7" y2="12"/>
+          <line x1="17" y1="12" x2="21" y2="12"/>
+        </svg>
+        Select an item
+      </button>
+    </div>
+
+    <!-- Recently Found Section -->
+    <div class="popup-recent-section">
+      <div class="section-label">Recently found</div>
+      <div id="recent-list" class="recent-list">
+        <!-- Rendered via popup.js -->
+        <div class="empty-recent">No recent searches yet</div>
+      </div>
+    </div>
+
+    <!-- Footer Links -->
+    <footer class="popup-footer">
+      <button id="btn-popup-finds" class="footer-link">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+        </svg>
+        My Finds
+      </button>
+      <button id="btn-popup-sidepanel" class="footer-link">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+          <line x1="15" y1="3" x2="15" y2="21"/>
+        </svg>
+        Side Panel
+      </button>
+    </footer>
+  </div>
+
+  <script type="module" src="popup.js"></script>
+</body>
+</html>

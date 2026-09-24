@@ -1,0 +1,12 @@
+{
+  "name": "findly",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Findly Chrome Extension & Next.js backend",
+  "scripts": {
+    "testbed": "node test-page/serve.js",
+    "serve:test": "node test-page/serve.js",
+    "backend:dev": "npm --prefix backend run dev",
+    "backend:build": "npm --prefix backend run build"
+  }
+}

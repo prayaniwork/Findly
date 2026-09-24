@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Findly — Visual Shopping Assistant</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="sidepanel.css">
+</head>
+<body>
+  <div id="app" class="findly-app">
+    <!-- Top Navigation Bar -->
+    <header class="findly-header">
+      <div class="header-left">
+        <button id="btn-brand" class="brand-link" title="Findly Home">
+          <span class="brand-lens">🔍</span>
+          <span class="brand-name">FINDLY</span>
+        </button>
+      </div>
+
+      <div class="header-right">
+        <button id="btn-open-select" class="btn-icon" title="Select an item on webpage">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="9"/>
+            <line x1="12" y1="3" x2="12" y2="7"/>
+            <line x1="12" y1="17" x2="12" y2="21"/>
+            <line x1="3" y1="12" x2="7" y2="12"/>
+            <line x1="17" y1="12" x2="21" y2="12"/>
+          </svg>
+        </button>
+        <button id="btn-nav-finds" class="btn-icon badge-wrapper" title="My Saved Finds">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+          </svg>
+          <span id="saved-badge" class="badge-dot hidden"></span>
+        </button>
+        <button id="btn-nav-settings" class="btn-icon" title="Settings">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Dynamic View Container -->
+    <main id="main-content" class="findly-main">
+      <!-- 1. IDLE STATE -->
+      <section id="state-idle" class="view-state active">
+        <div class="idle-hero">
+          <div class="idle-lens-graphic">
+            <div class="lens-glow"></div>
+            <div class="lens-core">🔍</div>
+          </div>
+          <h1 class="idle-title">Select something you're looking for</h1>
+          <p class="idle-subtitle">Spot any product while browsing Pinterest, Myntra, Amazon or Flipkart. Findly gets you exact & similar finds instantly.</p>
+
+          <button id="btn-idle-select" class="btn-primary w-full">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="9"/>
+              <line x1="12" y1="3" x2="12" y2="7"/>
+              <line x1="12" y1="17" x2="12" y2="21"/>
+              <line x1="3" y1="12" x2="7" y2="12"/>
+              <line x1="17" y1="12" x2="21" y2="12"/>
+            </svg>
+            Select an item
+          </button>
+
+          <p class="idle-helper">Or hover over any product image and choose <strong>Find similar</strong>.</p>
+        </div>
+
+        <!-- Sample Mock Inspiration Gallery -->
+        <div class="idle-samples">
+          <div class="sample-section-label">Popular visual categories</div>
+          <div class="sample-cards-grid">
+            <div class="sample-card" data-sample="linen">
+              <img src="https://images.unsplash.com/photo-1595777457583-95e059d581b8?auto=format&fit=crop&w=300&q=80" alt="Linen Dress" loading="lazy">
+              <span class="sample-title">Linen Midi Dresses</span>
+            </div>
+            <div class="sample-card" data-sample="bag">
+              <img src="https://images.unsplash.com/photo-1548036328-c9fa89d128fa?auto=format&fit=crop&w=300&q=80" alt="Leather Tote" loading="lazy">
+              <span class="sample-title">Structured Totes</span>
+            </div>
+            <div class="sample-card" data-sample="watch">
+              <img src="https://images.unsplash.com/photo-1524805444758-089113d48a6d?auto=format&fit=crop&w=300&q=80" alt="Minimalist Watch" loading="lazy">
+              <span class="sample-title">Bauhaus Watches</span>
+            </div>
+            <div class="sample-card" data-sample="home">
+              <img src="https://images.unsplash.com/photo-1507473885765-e6ed057f782c?auto=format&fit=crop&w=300&q=80" alt="Ceramic Lamp" loading="lazy">
+              <span class="sample-title">Fluted Ceramic Lamps</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2. IMAGE SELECTED & 3. ANALYZING / SEARCHING STATE -->
+      <section id="state-analyzing" class="view-state hidden">
+        <div class="analyzing-container">
+          <div class="selected-image-preview-wrapper">
+            <img id="analyzing-img" src="" alt="Selected product" class="selected-image-preview">
+            <div class="scan-line-effect"></div>
+          </div>
+
+          <div class="analyzing-status-box">
+            <h2 id="analyzing-heading" class="analyzing-heading">Understanding your product...</h2>
+            <div id="analyzing-pills" class="progressive-pills-row">
+              <!-- Revealed progressively: Dress, White, Linen, Midi, Women's -->
+            </div>
+            <p id="analyzing-subtext" class="analyzing-subtext">Analyzing silhouette, color palette and textures...</p>
+          </div>
+
+          <div class="analyzing-actions">
+            <button id="btn-change-selection" class="btn-secondary">Change selection</button>
+            <button id="btn-cancel-analysis" class="btn-ghost">Cancel</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 5. RESULTS STATE -->
+      <section id="state-results" class="view-state hidden">
+        <!-- Results Source Banner -->
+        <div class="results-source-bar">
+          <div class="source-thumb-info">
+            <img id="results-source-thumb" src="" alt="Source query" class="source-thumb">
+            <div class="source-meta">
+              <div id="results-count-label" class="results-count">18 matches found</div>
+              <div id="results-detected-label" class="source-tags-summary">White Linen Midi Dress</div>
+            </div>
+          </div>
+          <div class="source-bar-actions">
+            <button id="btn-filter-toggle" class="btn-filter" title="Filter results">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+              </svg>
+              <span>Filter</span>
+              <span id="filter-active-indicator" class="filter-dot hidden"></span>
+            </button>
+            <button id="btn-change-img" class="btn-icon-subtle" title="Select different image">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                <path d="M3 3v5h5"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Filter Drawer / Dropdown Panel -->
+        <div id="filter-drawer" class="filter-drawer hidden">
+          <div class="filter-drawer-header">
+            <span class="filter-drawer-title">Filter matches</span>
+            <button id="btn-reset-filters" class="btn-text">Reset all</button>
+          </div>
+          
+          <div class="filter-group">
+            <label class="filter-label">Stores</label>
+            <div class="store-filter-chips">
+              <button class="chip-store active" data-store="Myntra">Myntra</button>
+              <button class="chip-store active" data-store="Amazon">Amazon</button>
+              <button class="chip-store active" data-store="Flipkart">Flipkart</button>
+              <button class="chip-store active" data-store="Meesho">Meesho</button>
+            </div>
+          </div>
+
+          <div class="filter-group">
+            <label class="filter-label">Minimum Match Score</label>
+            <div class="score-filter-chips">
+              <button class="chip-score active" data-min="0">All</button>
+              <button class="chip-score" data-min="70">70%+</button>
+              <button class="chip-score" data-min="80">80%+</button>
+              <button class="chip-score" data-min="90">90%+</button>
+            </div>
+          </div>
+
+          <div class="filter-group">
+            <label class="filter-label">Sort by</label>
+            <div class="sort-filter-chips">
+              <button class="chip-sort active" data-sort="best-match">Best match</button>
+              <button class="chip-sort" data-sort="price-asc">Lowest price</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tabs: Exact / Similar / Cheaper / Premium -->
+        <nav class="results-tabs" role="tablist">
+          <button id="tab-similar" class="tab-btn active" data-tab="similar" role="tab">Similar</button>
+          <button id="tab-exact" class="tab-btn" data-tab="exact" role="tab">Exact</button>
+          <button id="tab-cheaper" class="tab-btn" data-tab="cheaper" role="tab">Cheaper</button>
+          <button id="tab-premium" class="tab-btn" data-tab="premium" role="tab">Premium</button>
+        </nav>
+
+        <!-- Tab Specific Subheader Banners -->
+        <div id="tab-banner-cheaper" class="tab-context-banner hidden">
+          <div class="banner-title">Same vibe. Less money.</div>
+          <div class="banner-sub" id="cheaper-banner-sub">Original reference price: ₹2,499 • 7 similar products under ₹1,500</div>
+        </div>
+
+        <div id="tab-banner-premium" class="tab-context-banner hidden">
+          <div class="banner-title">Premium curation</div>
+          <div class="banner-sub">Similar styles at a higher price range from designer and boutique labels.</div>
+        </div>
+
+        <div id="tab-banner-exact-fallback" class="tab-context-banner warning hidden">
+          <div class="banner-title">Couldn't find an exact match</div>
+          <div class="banner-sub">Here are the closest alternatives that match your product's silhouette and fabric.</div>
+        </div>
+
+        <!-- Tab Content Viewport -->
+        <div class="results-body">
+          <!-- Prominent Closest Match Card (shown on Similar tab) -->
+          <div id="closest-match-section" class="closest-match-wrapper">
+            <div class="section-badge-label">Best Match</div>
+            <div id="closest-match-card" class="closest-match-card">
+              <!-- Rendered via JS -->
+            </div>
+          </div>
+
+          <!-- Product Grid: 2 columns -->
+          <div class="products-grid-section">
+            <div class="grid-header-row">
+              <div class="grid-heading-group">
+                <h3 id="grid-section-heading" class="grid-section-heading">Similar finds</h3>
+                <span id="grid-count-badge" class="grid-count-badge"></span>
+              </div>
+            </div>
+            <div id="products-grid" class="products-grid">
+              <!-- Product cards rendered via JS -->
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 6. PRODUCT DETAIL STATE -->
+      <section id="state-detail" class="view-state hidden">
+        <div class="detail-header-bar">
+          <button id="btn-detail-back" class="btn-back">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="19" y1="12" x2="5" y2="12"/>
+              <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            <span>Back to results</span>
+          </button>
+          <div class="detail-header-actions">
+            <button id="btn-detail-save" class="btn-icon" title="Save to My Finds">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div id="detail-content" class="detail-body">
+          <!-- Rendered via JS -->
+        </div>
+      </section>
+
+      <!-- 7. COMPARE STATE -->
+      <section id="state-compare" class="view-state hidden">
+        <div class="detail-header-bar">
+          <button id="btn-compare-back" class="btn-back">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="19" y1="12" x2="5" y2="12"/>
+              <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            <span>Back to results</span>
+          </button>
+          <button id="btn-compare-clear" class="btn-text">Clear all</button>
+        </div>
+
+        <div class="compare-container">
+          <div class="compare-headline">
+            <h2>Compare products</h2>
+            <p>Comparing up to 3 selected items side-by-side</p>
+          </div>
+
+          <div id="compare-table-wrapper" class="compare-table-wrapper">
+            <!-- Rendered via JS -->
+          </div>
+        </div>
+      </section>
+
+      <!-- 8. NO MATCHES STATE -->
+      <section id="state-no-matches" class="view-state hidden">
+        <div class="feedback-state">
+          <div class="feedback-icon">🔎</div>
+          <h2>Couldn't find an exact match</h2>
+          <p>Try selecting the product image more precisely or choose another angle.</p>
+          <button id="btn-no-matches-retry" class="btn-primary">Select another image</button>
+        </div>
+      </section>
+
+      <!-- 9. ERROR STATE -->
+      <section id="state-error" class="view-state hidden">
+        <div class="feedback-state">
+          <div class="feedback-icon">⚠️</div>
+          <h2 id="error-title">Image analysis failed</h2>
+          <p id="error-message">Unable to inspect this image. Please try selecting a different image on the page.</p>
+          <button id="btn-error-retry" class="btn-primary">Select another image</button>
+        </div>
+      </section>
+
+      <!-- 10. MY FINDS (SAVED PRODUCTS) STATE -->
+      <section id="state-finds" class="view-state hidden">
+        <div class="detail-header-bar">
+          <button id="btn-finds-back" class="btn-back">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="19" y1="12" x2="5" y2="12"/>
+              <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            <span>Back</span>
+          </button>
+          <span class="view-title">My Finds</span>
+          <span id="finds-count-badge" class="counter-chip">0 saved</span>
+        </div>
+
+        <div id="finds-list" class="finds-grid">
+          <!-- Rendered via JS -->
+        </div>
+      </section>
+
+      <!-- 11. SETTINGS STATE -->
+      <section id="state-settings" class="view-state hidden">
+        <div class="detail-header-bar">
+          <button id="btn-settings-back" class="btn-back">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="19" y1="12" x2="5" y2="12"/>
+              <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            <span>Back</span>
+          </button>
+          <span class="view-title">Settings</span>
+          <div style="width: 40px"></div>
+        </div>
+
+        <div class="settings-container">
+          <div class="settings-group">
+            <div class="setting-item">
+              <div class="setting-info">
+                <span class="setting-title">Show Findly button on images</span>
+                <span class="setting-desc">Displays a subtle hover button over eligible product images</span>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="setting-hover-btn" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+
+            <div class="setting-item">
+              <div class="setting-info">
+                <span class="setting-title">Automatically open side panel</span>
+                <span class="setting-desc">Opens Findly side panel right after an image is selected</span>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="setting-auto-open" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+
+            <div class="setting-item">
+              <div class="setting-info">
+                <span class="setting-title">Enable on shopping websites</span>
+                <span class="setting-desc">Pinterest, Myntra, Amazon, Flipkart, Meesho</span>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="setting-enable-shopping" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <div class="settings-group">
+            <div class="setting-row">
+              <label class="setting-label">Default sort order</label>
+              <select id="setting-default-sort" class="select-input">
+                <option value="best-match">Best match</option>
+                <option value="price-asc">Lowest price</option>
+              </select>
+            </div>
+
+            <div class="setting-row">
+              <label class="setting-label">Currency</label>
+              <div class="setting-value-static">Indian Rupee (INR ₹)</div>
+            </div>
+
+            <div class="setting-row">
+              <label class="setting-label">Data source</label>
+              <select id="setting-data-source" class="select-input">
+                <option value="local">Local Catalog (Fast & Offline)</option>
+                <option value="backend">Next.js API Layer (http://localhost:3000)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="settings-footer">
+            <p>Findly Prototype v1.0 • Privacy Preserving (Images analyzed client-side)</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Floating Compare Dock / Drawer Trigger -->
+    <div id="compare-dock" class="compare-dock hidden">
+      <div class="dock-content">
+        <div class="dock-thumbnails" id="dock-thumbnails"></div>
+        <div class="dock-text">
+          <span id="dock-count-label">2 products selected</span>
+        </div>
+      </div>
+      <div class="dock-actions">
+        <button id="btn-dock-view" class="btn-dock-primary">Compare</button>
+        <button id="btn-dock-dismiss" class="btn-dock-close" title="Clear selection">✕</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="sidepanel.js"></script>
+</body>
+</html>
