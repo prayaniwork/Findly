@@ -1,6 +1,7 @@
 /**
  * @fileoverview Findly In-Page Content Script
- * Implements Mode 1 (Hover Action) and Mode 2 (Interactive Selection Mode)
+ * Implements Mode 1 (Hover Action with Shadow DOM) and Mode 2 (Interactive Selection Mode)
+ * Deeply integrates with Pinterest pin structures, overlay buttons, and dynamic image containers.
  */
 
 (function () {
@@ -8,19 +9,23 @@
   if (window.__FINDLY_INITIALIZED__) return;
   window.__FINDLY_INITIALIZED__ = true;
 
-  const MIN_IMAGE_SIZE = 120; // Ignore tiny icons, logos, tracking pixels
+  const MIN_IMAGE_SIZE = 110; // Ignore tiny icons, badges, tracking pixels
 
   let settings = {
     showFindlyButtonOnImages: true,
     enableOnShoppingWebsites: true
   };
 
+  let shadowHost = null;
+  let shadowRoot = null;
   let hoverPillEl = null;
   let activeImageEl = null;
   let pillHideTimeout = null;
   let isSelectionModeActive = false;
   let currentHighlightedEl = null;
   let selectionBannerEl = null;
+  let toastEl = null;
+  let toastTimeout = null;
 
   // Initialize settings
   if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
@@ -38,10 +43,69 @@
   }
 
   /**
-   * Create or get hover pill DOM element
+   * Create Shadow DOM Host to completely isolate hover button from page CSS conflicts
    */
-  function getOrCreateHoverPill() {
-    if (hoverPillEl) return hoverPillEl;
+  function initShadowHost() {
+    if (shadowHost) return;
+
+    shadowHost = document.createElement('div');
+    shadowHost.id = 'findly-shadow-host';
+    shadowHost.style.cssText = 'all: initial; position: absolute; top: 0; left: 0; width: 0; height: 0; z-index: 2147483647; pointer-events: none;';
+    document.documentElement.appendChild(shadowHost);
+
+    shadowRoot = shadowHost.attachShadow({ mode: 'open' });
+
+    const style = document.createElement('style');
+    style.textContent = `
+      #findly-hover-pill {
+        position: absolute;
+        z-index: 2147483647;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 13px;
+        background: rgba(15, 23, 42, 0.92);
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+        border: 1px solid rgba(255, 255, 255, 0.22);
+        border-radius: 9999px;
+        color: #ffffff;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        font-size: 12px;
+        font-weight: 500;
+        letter-spacing: -0.01em;
+        box-shadow: 0 4px 18px rgba(0, 0, 0, 0.32), 0 0 12px rgba(168, 85, 247, 0.35);
+        cursor: pointer;
+        user-select: none;
+        opacity: 0;
+        pointer-events: none;
+        transform: translateY(4px) scale(0.96);
+        transition: opacity 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+                    transform 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+                    background 0.15s ease,
+                    border-color 0.15s ease;
+      }
+      #findly-hover-pill.findly-visible {
+        opacity: 1;
+        pointer-events: auto;
+        transform: translateY(0) scale(1);
+      }
+      #findly-hover-pill:hover {
+        background: rgba(15, 23, 42, 0.98);
+        border-color: rgba(168, 85, 247, 0.85);
+        box-shadow: 0 6px 22px rgba(0, 0, 0, 0.4), 0 0 16px rgba(168, 85, 247, 0.5);
+      }
+      .findly-pill-icon {
+        font-size: 13px;
+        line-height: 1;
+      }
+      .findly-pill-text {
+        line-height: 1;
+        color: #f8fafc;
+        white-space: nowrap;
+      }
+    `;
+    shadowRoot.appendChild(style);
 
     hoverPillEl = document.createElement('div');
     hoverPillEl.id = 'findly-hover-pill';
@@ -49,8 +113,7 @@
       <span class="findly-pill-icon">🔍</span>
       <span class="findly-pill-text">Find similar</span>
     `;
-
-    document.documentElement.appendChild(hoverPillEl);
+    shadowRoot.appendChild(hoverPillEl);
 
     // Keep pill visible when hovering over the pill itself
     hoverPillEl.addEventListener('mouseenter', () => {
@@ -58,7 +121,7 @@
     });
 
     hoverPillEl.addEventListener('mouseleave', () => {
-      hidePill();
+      hidePill(250);
     });
 
     hoverPillEl.addEventListener('click', (e) => {
@@ -69,61 +132,163 @@
       }
       hidePill(0);
     });
-
-    return hoverPillEl;
   }
 
   /**
-   * Determine if an element is an eligible product image
+   * Determine if an image has sufficient dimensions
    */
-  function isEligibleImage(el) {
-    if (!el || el === hoverPillEl || hoverPillEl?.contains(el)) return false;
-    if (selectionBannerEl?.contains(el)) return false;
+  function isImageSufficient(img) {
+    if (!img) return false;
+    const rect = img.getBoundingClientRect();
+    const naturalW = img.naturalWidth || rect.width;
+    const naturalH = img.naturalHeight || rect.height;
+    return (rect.width >= MIN_IMAGE_SIZE && rect.height >= MIN_IMAGE_SIZE) ||
+           (naturalW >= MIN_IMAGE_SIZE && naturalH >= MIN_IMAGE_SIZE);
+  }
 
-    // Check <img> elements
-    if (el.tagName === 'IMG') {
-      const rect = el.getBoundingClientRect();
-      const naturalW = el.naturalWidth || rect.width;
-      const naturalH = el.naturalHeight || rect.height;
-      return (rect.width >= MIN_IMAGE_SIZE && rect.height >= MIN_IMAGE_SIZE) ||
-             (naturalW >= MIN_IMAGE_SIZE && naturalH >= MIN_IMAGE_SIZE);
+  /**
+   * Deeply resolve the eligible image element from a Pinterest container, overlay, or img
+   */
+  function findEligibleImage(el) {
+    if (!el || el === shadowHost || shadowHost?.contains(el)) return null;
+    if (selectionBannerEl?.contains(el)) return null;
+
+    // 1. Direct <img> check
+    if (el.tagName === 'IMG' && isImageSufficient(el)) {
+      return el;
     }
 
-    // Check background-image elements or picture sources
+    // 2. Check if element has role="img"
     if (el.getAttribute('role') === 'img') {
       const rect = el.getBoundingClientRect();
-      return rect.width >= MIN_IMAGE_SIZE && rect.height >= MIN_IMAGE_SIZE;
+      if (rect.width >= MIN_IMAGE_SIZE && rect.height >= MIN_IMAGE_SIZE) {
+        return el;
+      }
     }
 
-    // Check computed background-image
-    const bg = window.getComputedStyle(el).backgroundImage;
-    if (bg && bg !== 'none' && bg.startsWith('url(')) {
-      const rect = el.getBoundingClientRect();
-      return rect.width >= MIN_IMAGE_SIZE && rect.height >= MIN_IMAGE_SIZE;
+    // 3. Check computed background-image
+    try {
+      const bg = window.getComputedStyle(el).backgroundImage;
+      if (bg && bg !== 'none' && bg.startsWith('url(')) {
+        const rect = el.getBoundingClientRect();
+        if (rect.width >= MIN_IMAGE_SIZE && rect.height >= MIN_IMAGE_SIZE) {
+          return el;
+        }
+      }
+    } catch (e) {}
+
+    // 4. Pinterest & Ecommerce Deep Hierarchy Search
+    // Walk up up to 8 levels to check parent containers, pin cards, or anchors
+    let curr = el;
+    for (let i = 0; i < 8 && curr && curr !== document.body && curr !== document.documentElement; i++) {
+      // Check if curr is a known pin/product container
+      const isPinContainer =
+        curr.getAttribute('data-test-id')?.includes('pin') ||
+        curr.getAttribute('data-grid-item') === 'true' ||
+        curr.getAttribute('role') === 'listitem' ||
+        curr.classList?.contains('pin') ||
+        curr.tagName === 'ARTICLE' ||
+        curr.tagName === 'FIGURE' ||
+        (curr.tagName === 'A' && (curr.href?.includes('/pin/') || curr.href?.includes('/p/')));
+
+      if (isPinContainer) {
+        const insideImg = curr.querySelector('img');
+        if (insideImg && isImageSufficient(insideImg)) {
+          return insideImg;
+        }
+      }
+
+      // Also check if curr has an eligible img inside it
+      if (i <= 4) {
+        const insideImg = curr.querySelector('img');
+        if (insideImg && isImageSufficient(insideImg)) {
+          return insideImg;
+        }
+      }
+
+      curr = curr.parentElement;
     }
 
-    return false;
+    return null;
   }
 
   /**
-   * Extract image source URL
+   * Extract image URL, base64 data, and sample dominant color from canvas
    */
-  function extractImageSrc(el) {
+  function extractImageData(el) {
+    let src = '';
     if (el.tagName === 'IMG') {
-      return el.currentSrc || el.src || el.getAttribute('data-src') || el.getAttribute('srcset');
+      src = el.currentSrc || el.src || el.getAttribute('data-src') || '';
+    } else {
+      const bg = window.getComputedStyle(el).backgroundImage;
+      if (bg && bg.startsWith('url(')) {
+        const match = bg.match(/url\(['"]?(.*?)['"]?\)/);
+        if (match && match[1]) src = match[1];
+      }
     }
 
-    const bg = window.getComputedStyle(el).backgroundImage;
-    if (bg && bg.startsWith('url(')) {
-      const match = bg.match(/url\(['"]?(.*?)['"]?\)/);
-      if (match && match[1]) return match[1];
+    let base64 = null;
+    let dominantColor = null;
+
+    if (el.tagName === 'IMG' && el.complete && el.naturalWidth > 0) {
+      try {
+        const canvas = document.createElement('canvas');
+        const maxDim = 480;
+        let w = el.naturalWidth;
+        let h = el.naturalHeight;
+        if (w > maxDim || h > maxDim) {
+          if (w > h) {
+            h = Math.round((h * maxDim) / w);
+            w = maxDim;
+          } else {
+            w = Math.round((w * maxDim) / h);
+            h = maxDim;
+          }
+        }
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        ctx.drawImage(el, 0, 0, w, h);
+
+        try {
+          base64 = canvas.toDataURL('image/jpeg', 0.85);
+        } catch (corsErr) {}
+
+        try {
+          // Color sampling
+          const imgData = ctx.getImageData(0, 0, w, h).data;
+          let rSum = 0, gSum = 0, bSum = 0, count = 0;
+          for (let i = 0; i < imgData.length; i += 16) {
+            const r = imgData[i];
+            const g = imgData[i + 1];
+            const b = imgData[i + 2];
+            if ((r > 240 && g > 240 && b > 240) || (r < 25 && g < 25 && b < 25)) continue;
+            rSum += r;
+            gSum += g;
+            bSum += b;
+            count++;
+          }
+          if (count > 0) {
+            dominantColor = mapRgbToColorName(rSum / count, gSum / count, bSum / count);
+          }
+        } catch (sampleErr) {}
+      } catch (canvasErr) {}
     }
 
-    // Check child img
-    const childImg = el.querySelector('img');
-    if (childImg) return childImg.currentSrc || childImg.src;
+    return { src, base64, dominantColor };
+  }
 
-    return null;
+  function mapRgbToColorName(r, g, b) {
+    if (r > 135 && g < 80 && b < 80) return 'Red';
+    if (r > 115 && g < 55 && b < 70) return 'Maroon';
+    if (r > 170 && g > 90 && g < 150 && b > 120) return 'Pink';
+    if (g > r + 25 && g > b + 25) return 'Green';
+    if (b > r + 25 && b > g + 15) return 'Blue';
+    if (r > 175 && g > 155 && b < 95) return 'Yellow & Gold';
+    if (r > 135 && g > 85 && b < 65) return 'Tan Brown';
+    if (r < 50 && g < 50 && b < 50) return 'Black';
+    if (r > 205 && g > 205 && b > 205) return 'White';
+    return 'Multicolor';
   }
 
   /**
@@ -132,31 +297,31 @@
   function showPillOver(imgEl) {
     if (!settings.showFindlyButtonOnImages || isSelectionModeActive) return;
 
+    initShadowHost();
     activeImageEl = imgEl;
-    const pill = getOrCreateHoverPill();
     clearTimeout(pillHideTimeout);
 
     const rect = imgEl.getBoundingClientRect();
     const scrollX = window.pageXOffset || document.documentElement.scrollLeft;
     const scrollY = window.pageYOffset || document.documentElement.scrollTop;
 
-    // Position 10px inside top-right corner
+    // Position 10px inside top-right corner of the actual image
     let top = rect.top + scrollY + 10;
-    let left = rect.right + scrollX - 110;
+    let left = rect.right + scrollX - 118;
 
     // Bounds safety
     if (left < scrollX + 10) left = scrollX + 10;
     if (top < scrollY + 10) top = scrollY + 10;
 
-    pill.style.top = `${top}px`;
-    pill.style.left = `${left}px`;
-    pill.classList.add('findly-visible');
+    hoverPillEl.style.top = `${top}px`;
+    hoverPillEl.style.left = `${left}px`;
+    hoverPillEl.classList.add('findly-visible');
   }
 
   /**
    * Hide the hover pill with debounce
    */
-  function hidePill(delay = 200) {
+  function hidePill(delay = 220) {
     clearTimeout(pillHideTimeout);
     pillHideTimeout = setTimeout(() => {
       if (hoverPillEl) {
@@ -167,9 +332,8 @@
   }
 
   /**
-  let toastEl = null;
-  let toastTimeout = null;
-
+   * In-page feedback notification
+   */
   function showFeedbackToast(src, alt) {
     if (!toastEl) {
       toastEl = document.createElement('div');
@@ -181,7 +345,7 @@
       <img src="${src}" class="findly-toast-thumb" alt="Product preview">
       <div class="findly-toast-text">
         <span class="findly-toast-title">Finding similar with Findly...</span>
-        <span class="findly-toast-desc">${alt ? (alt.slice(0, 30) + '...') : 'Analyzing silhouette & style'}</span>
+        <span class="findly-toast-desc">${alt ? (alt.slice(0, 32) + '...') : 'Analyzing silhouette & visual style'}</span>
       </div>
       <button class="findly-toast-btn" id="findly-toast-open-btn">Open Panel</button>
     `;
@@ -210,15 +374,17 @@
    * Send selected image message to background / sidepanel
    */
   function selectImage(el, mode = 'hover') {
-    const src = extractImageSrc(el);
-    if (!src) return;
+    const { src, base64, dominantColor } = extractImageData(el);
+    if (!src && !base64) return;
 
     const rect = el.getBoundingClientRect();
     const altText = el.getAttribute('alt') || el.getAttribute('title') || '';
     const payload = {
       action: 'FINDLY_IMAGE_SELECTED',
       data: {
-        src,
+        src: src || base64,
+        base64,
+        dominantColor,
         alt: altText,
         width: Math.round(rect.width),
         height: Math.round(rect.height),
@@ -229,14 +395,14 @@
       }
     };
 
-    // Show instant visual toast feedback right on the page
-    showFeedbackToast(src, altText);
+    // Show visual feedback toast on page
+    showFeedbackToast(src || base64, altText);
 
     // Relay through chrome runtime
     if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
-      chrome.runtime.sendMessage(payload, (response) => {
+      chrome.runtime.sendMessage(payload, () => {
         if (chrome.runtime.lastError) {
-          console.debug('[Findly] Runtime message relay note:', chrome.runtime.lastError.message);
+          console.debug('[Findly] Runtime relay note:', chrome.runtime.lastError.message);
         }
       });
     }
@@ -248,32 +414,35 @@
     }, 1000);
   }
 
-  // --- Mode 1 Hover Listeners ---
+  // --- Mode 1 Delegated Hover Listeners ---
+  let lastCheckedTarget = null;
+
   document.addEventListener('mouseover', (e) => {
     if (isSelectionModeActive) return;
 
-    let target = e.target;
-    // Walk up up to 2 levels to check for eligible container
-    for (let i = 0; i < 2 && target && target !== document.body; i++) {
-      if (isEligibleImage(target)) {
-        showPillOver(target);
-        return;
-      }
-      target = target.parentElement;
+    const target = e.target;
+    if (target === lastCheckedTarget) return;
+    lastCheckedTarget = target;
+
+    const img = findEligibleImage(target);
+    if (img) {
+      showPillOver(img);
     }
   }, { passive: true });
 
   document.addEventListener('mouseout', (e) => {
     if (isSelectionModeActive) return;
     const related = e.relatedTarget;
-    if (!related || (hoverPillEl && (related === hoverPillEl || hoverPillEl.contains(related)))) {
+    if (!related || (shadowHost && (related === shadowHost || shadowHost.contains(related)))) {
       return;
     }
-    hidePill();
+    // If mouse left active image and didn't move onto the pill
+    if (activeImageEl && !activeImageEl.contains(related) && (!hoverPillEl || !hoverPillEl.contains(related))) {
+      hidePill(200);
+    }
   }, { passive: true });
 
-  // --- Mode 2 Selection Mode Implementation ---
-
+  // --- Mode 2 Interactive Selection Mode ---
   function startSelectionMode() {
     if (isSelectionModeActive) return;
     isSelectionModeActive = true;
@@ -281,7 +450,6 @@
 
     document.documentElement.classList.add('findly-selection-active');
 
-    // Create top status banner
     if (!selectionBannerEl) {
       selectionBannerEl = document.createElement('div');
       selectionBannerEl.id = 'findly-selection-banner';
@@ -332,17 +500,13 @@
 
   function onSelectionHover(e) {
     if (!isSelectionModeActive) return;
-    let target = e.target;
-    for (let i = 0; i < 2 && target && target !== document.body; i++) {
-      if (isEligibleImage(target)) {
-        if (currentHighlightedEl && currentHighlightedEl !== target) {
-          currentHighlightedEl.classList.remove('findly-image-highlight');
-        }
-        currentHighlightedEl = target;
-        currentHighlightedEl.classList.add('findly-image-highlight');
-        return;
+    const img = findEligibleImage(e.target);
+    if (img) {
+      if (currentHighlightedEl && currentHighlightedEl !== img) {
+        currentHighlightedEl.classList.remove('findly-image-highlight');
       }
-      target = target.parentElement;
+      currentHighlightedEl = img;
+      currentHighlightedEl.classList.add('findly-image-highlight');
     }
   }
 
@@ -358,16 +522,12 @@
     if (!isSelectionModeActive) return;
     if (selectionBannerEl?.contains(e.target)) return;
 
-    let target = e.target;
-    for (let i = 0; i < 3 && target && target !== document.body; i++) {
-      if (isEligibleImage(target)) {
-        e.preventDefault();
-        e.stopPropagation();
-        selectImage(target, 'selection');
-        exitSelectionMode();
-        return;
-      }
-      target = target.parentElement;
+    const img = findEligibleImage(e.target);
+    if (img) {
+      e.preventDefault();
+      e.stopPropagation();
+      selectImage(img, 'selection');
+      exitSelectionMode();
     }
   }
 
@@ -393,5 +553,5 @@
     });
   }
 
-  console.log('[Findly] Content script active with Hover and Selection modes.');
+  console.log('[Findly] Content script active with Shadow DOM Hover and Selection modes.');
 })();

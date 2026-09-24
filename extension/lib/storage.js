@@ -8,7 +8,7 @@ const DEFAULT_SETTINGS = {
   enableOnShoppingWebsites: true,
   defaultSort: 'best-match',
   currency: 'INR',
-  dataSource: 'local',
+  dataSource: 'backend',
   backendUrl: 'http://localhost:3000'
 };
 

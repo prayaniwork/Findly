@@ -1,24 +1,26 @@
 import { NextResponse } from 'next/server';
-import { getProductCatalog } from '../../../lib/dataset';
+import { getProductCatalog, Product } from '../../../lib/dataset';
 import { calculateMatchScore, ImageAnalysis } from '../../../lib/matching';
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { queryAttrs, filters = {}, tab = 'similar' } = body;
+    const { queryAttrs, filters = {}, tab = 'similar', visualMatches = [] } = body;
 
     if (!queryAttrs) {
       return NextResponse.json({ error: 'queryAttrs are required' }, { status: 400 });
     }
 
     const catalog = getProductCatalog();
+    // Merge live Google Lens visual matches with catalog
+    const allProducts: Product[] = [...(visualMatches || []), ...catalog];
     const referencePrice = queryAttrs.estimatedPrice || 2499;
 
-    let scored = catalog.map(product => {
+    let scored = allProducts.map(product => {
       const match = calculateMatchScore(queryAttrs as ImageAnalysis, product, { referencePrice });
       return {
         ...product,
-        matchScore: match.score,
+        matchScore: product.matchScore ? Math.max(product.matchScore, match.score) : match.score,
         matchReason: match.summaryReason,
         matchReasons: match.detailedBreakdown
       };
@@ -32,10 +34,11 @@ export async function POST(request: Request) {
     // Tab logic
     let isExactFallback = false;
     if (tab === 'exact') {
-      let exact = scored.filter(p => p.matchScore >= 90);
+      // Strict threshold: >= 92% visual match
+      let exact = scored.filter(p => (p.matchScore || 0) >= 92);
       if (exact.length === 0) {
         isExactFallback = true;
-        exact = [...scored].sort((a, b) => b.matchScore - a.matchScore).slice(0, 10);
+        exact = []; // Strict: do not show unrelated 80% items as exact matches
       }
       scored = exact;
     } else if (tab === 'cheaper') {
@@ -51,7 +54,7 @@ export async function POST(request: Request) {
     // Sort
     scored.sort((a, b) => {
       if (filters.sortBy === 'price-asc') return a.price - b.price;
-      return b.matchScore - a.matchScore;
+      return (b.matchScore || 0) - (a.matchScore || 0);
     });
 
     const bestMatch = scored.length > 0 ? scored[0] : null;

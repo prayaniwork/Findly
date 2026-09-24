@@ -23,6 +23,7 @@ import {
   trackCompareOpened,
   trackStoreClicked
 } from '../lib/analytics.js';
+import { getLiveStoreUrl } from '../lib/urls.js';
 
 // --- State Variables ---
 let catalog = [];
@@ -43,6 +44,31 @@ let activeFilters = {
   minMatchScore: 0,
   sortBy: 'best-match'
 };
+
+let toastDismissTimeout = null;
+
+/**
+ * Display modern inline toast without blocking browser window.alert
+ */
+export function showToast(message, duration = 3000) {
+  const toast = document.getElementById('sidepanel-toast');
+  const msgEl = document.getElementById('toast-message');
+  if (!toast || !msgEl) return;
+
+  msgEl.textContent = message;
+  toast.classList.remove('hidden');
+
+  void toast.offsetWidth; // Force reflow
+  toast.classList.add('visible');
+
+  clearTimeout(toastDismissTimeout);
+  toastDismissTimeout = setTimeout(() => {
+    toast.classList.remove('visible');
+    setTimeout(() => {
+      toast.classList.add('hidden');
+    }, 250);
+  }, duration);
+}
 
 // DOM Elements
 const views = {
@@ -149,13 +175,21 @@ async function handleNewImageSearch(searchData) {
   if (pillsContainer) pillsContainer.innerHTML = '';
 
   try {
-    // 1. Run deterministic image analysis abstraction
+    // 1. Run real vision analysis abstraction (backend Vision / Google Lens pipeline)
     const analysis = await analyzeImage(searchData.src, {
       alt: searchData.alt,
       title: searchData.pageTitle,
-      url: searchData.pageUrl
+      url: searchData.pageUrl,
+      base64: searchData.base64,
+      dominantColor: searchData.dominantColor
     });
     currentAnalysis = analysis;
+
+    // Merge live Google Lens visual matches into catalog if available
+    if (analysis.visualMatches && Array.isArray(analysis.visualMatches) && analysis.visualMatches.length > 0) {
+      const newItems = analysis.visualMatches.filter(vm => !catalog.some(c => c.id === vm.id));
+      catalog = [...newItems, ...catalog];
+    }
 
     // 2. Progressive attribute reveals animation
     const attributePills = getProgressiveAttributes(analysis);
@@ -218,11 +252,6 @@ function renderSearchResults() {
   currentProducts = products;
   currentBestMatch = bestMatch;
 
-  if (products.length === 0 && !bestMatch) {
-    showState('noMatches');
-    return;
-  }
-
   showState('results');
 
   // Update Source Bar
@@ -259,17 +288,23 @@ function renderSearchResults() {
     premiumBanner?.classList.remove('hidden');
     closestMatchSection?.classList.add('hidden');
   } else if (activeTab === 'exact') {
-    if (isExactFallback) {
-      exactFallbackBanner?.classList.remove('hidden');
+    if (products.length === 0) {
+      closestMatchSection?.classList.add('hidden');
+      exactFallbackBanner?.classList.add('hidden');
+    } else {
+      closestMatchSection?.classList.remove('hidden');
     }
-    closestMatchSection?.classList.remove('hidden');
   } else {
     // Similar tab: default
     closestMatchSection?.classList.remove('hidden');
   }
 
   // Render Closest Match Card
-  renderClosestMatchCard(bestMatch);
+  if (activeTab === 'exact' && products.length === 0) {
+    renderClosestMatchCard(null);
+  } else {
+    renderClosestMatchCard(bestMatch);
+  }
 
   // Render Product Grid
   renderProductGrid(products, bestMatch);
@@ -324,7 +359,7 @@ function renderClosestMatchCard(product) {
       </div>
 
       <div class="closest-match-footer">
-        <button class="btn-shadcn-primary flex-1 btn-view-store" data-url="${product.productUrl}" data-id="${product.id}">
+        <button class="btn-shadcn-primary flex-1 btn-view-store" data-url="${getLiveStoreUrl(product)}" data-id="${product.id}">
           <span>Visit ${product.store}</span>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
             <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
@@ -370,6 +405,35 @@ function renderProductGrid(products, bestMatch) {
   }
 
   if (gridItems.length === 0) {
+    if (activeTab === 'exact') {
+      gridContainer.innerHTML = `
+        <div class="exact-empty-state">
+          <div class="exact-empty-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"/>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+          </div>
+          <div>
+            <div class="exact-empty-title">No exact match found</div>
+            <p class="exact-empty-desc">No item met the 92%+ visual threshold. Check the "Similar" tab for related styles.</p>
+          </div>
+          <button class="btn-switch-similar btn-switch-similar-tab">
+            <span>Explore Similar Styles</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M5 12h14M12 5l7 7-7 7"/>
+            </svg>
+          </button>
+        </div>
+      `;
+      gridContainer.querySelector('.btn-switch-similar-tab')?.addEventListener('click', () => {
+        if (typeof window.switchTab === 'function') {
+          window.switchTab('similar');
+        }
+      });
+      return;
+    }
+
     gridContainer.innerHTML = `
       <div class="empty-grid-card">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
@@ -432,7 +496,7 @@ function renderProductGrid(products, bestMatch) {
             ` : ''}
           </div>
 
-          <button class="btn-shadcn-outline btn-card-store btn-view-store" data-url="${p.productUrl}" data-id="${p.id}">
+          <button class="btn-shadcn-outline btn-card-store btn-view-store" data-url="${getLiveStoreUrl(p)}" data-id="${p.id}">
             <span>Visit store</span>
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
@@ -447,7 +511,7 @@ function renderProductGrid(products, bestMatch) {
 
 // --- Product Detail View ---
 function openProductDetail(productId) {
-  const product = catalog.find(p => p.id === productId);
+  const product = currentProducts.find(p => p.id === productId) || catalog.find(p => p.id === productId) || (currentBestMatch?.id === productId ? currentBestMatch : null);
   if (!product) return;
 
   activeDetailProduct = product;
@@ -516,7 +580,7 @@ function openProductDetail(productId) {
     </div>
 
     <div class="detail-ctas">
-      <button class="btn-primary flex-1 btn-view-store" data-url="${product.productUrl}" data-id="${product.id}">
+      <button class="btn-primary flex-1 btn-view-store" data-url="${getLiveStoreUrl(product)}" data-id="${product.id}">
         View product
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
@@ -540,10 +604,10 @@ function toggleCompareProduct(productId) {
     compareProducts.splice(idx, 1);
   } else {
     if (compareProducts.length >= 3) {
-      alert('You can compare up to 3 products at a time.');
+      showToast('Maximum 3 products can be compared. Deselect one to add another.', 3000);
       return;
     }
-    const product = catalog.find(p => p.id === productId);
+    const product = currentProducts.find(p => p.id === productId) || catalog.find(p => p.id === productId) || (currentBestMatch?.id === productId ? currentBestMatch : null);
     if (product) compareProducts.push(product);
   }
 
@@ -601,18 +665,60 @@ function renderCompareTable() {
     return;
   }
 
+  const queryImage = currentSearch?.src || '';
+  const queryAttrs = currentAnalysis || {};
+
   const attributes = [
-    { label: 'Store', key: 'store' },
-    { label: 'Price', render: p => `<strong>₹${p.price.toLocaleString('en-IN')}</strong>` },
-    { label: 'Match Score', render: p => `<span class="match-badge">${p.matchScore || 90}%</span>` },
-    { label: 'Material', key: 'material' },
-    { label: 'Colour', key: 'color' },
-    { label: 'Category', render: p => `${p.subcategory || p.category}` },
-    { label: 'Rating', render: p => `★ ${p.rating} / 5.0` },
+    {
+      label: 'Store',
+      queryVal: '<span class="store-badge-pill" style="background: rgba(168, 85, 247, 0.15); color: var(--accent-purple);">Target Style</span>',
+      render: p => `<span class="store-badge-pill ${p.store.toLowerCase()}">${p.store}</span>`
+    },
+    {
+      label: 'Price',
+      queryVal: queryAttrs.estimatedPrice ? `<strong>~₹${queryAttrs.estimatedPrice.toLocaleString('en-IN')}</strong>` : '—',
+      render: p => `<strong>₹${p.price.toLocaleString('en-IN')}</strong>`
+    },
+    {
+      label: 'Match Score',
+      queryVal: '<span class="badge-best-match">Reference 100%</span>',
+      render: p => `<span class="badge-match-pill">${p.matchScore || 90}%</span>`
+    },
+    {
+      label: 'Category',
+      queryVal: queryAttrs.subcategory || queryAttrs.category || 'Fashion',
+      render: p => `${p.subcategory || p.category}`
+    },
+    {
+      label: 'Colour',
+      queryVal: queryAttrs.color || '—',
+      render: p => `${p.color || '—'}`
+    },
+    {
+      label: 'Material',
+      queryVal: queryAttrs.material || '—',
+      render: p => `${p.material || '—'}`
+    },
+    {
+      label: 'Silhouette',
+      queryVal: queryAttrs.silhouette || queryAttrs.fit || '—',
+      render: p => `${p.silhouette || p.fit || '—'}`
+    },
+    {
+      label: 'Occasion',
+      queryVal: queryAttrs.occasion || '—',
+      render: p => `${p.occasion || p.style || '—'}`
+    },
+    {
+      label: 'Rating',
+      queryVal: '—',
+      render: p => `★ ${p.rating} / 5.0`
+    },
     {
       label: 'Action',
+      queryVal: '<span style="font-size: 11px; color: var(--text-muted);">Query Item</span>',
       render: p => `
-        <button class="btn-primary w-full btn-view-store" data-url="${p.productUrl}" data-id="${p.id}" style="padding: 6px 8px; font-size: 11px;">
+        <button class="btn-shadcn-primary w-full btn-view-store" data-url="${getLiveStoreUrl(p)}" data-id="${p.id}" style="padding: 6px 8px; font-size: 11px;">
           View product
         </button>
       `
@@ -624,13 +730,22 @@ function renderCompareTable() {
       <thead>
         <tr>
           <th>Attribute</th>
+          ${queryImage ? `
+            <th class="compare-product-col" style="background: rgba(168, 85, 247, 0.05); border-right: 2px solid var(--border-subtle);">
+              <div class="compare-thumb-wrap">
+                <img src="${queryImage}" alt="Selected Image" class="compare-thumb" style="border: 2px solid var(--accent-purple);">
+              </div>
+              <div class="compare-product-name" style="color: var(--accent-purple); font-weight: 600;">Selected Pin</div>
+              <span style="font-size: 10px; color: var(--text-muted);">Target Image</span>
+            </th>
+          ` : ''}
           ${compareProducts.map(p => `
             <th class="compare-product-col">
               <div class="compare-thumb-wrap">
                 <img src="${p.image}" alt="${p.name}" class="compare-thumb">
               </div>
               <div class="compare-product-name">${p.name}</div>
-              <button class="btn-text btn-remove-compare" data-id="${p.id}" style="font-size: 10px; color: var(--text-muted);">Remove</button>
+              <button class="btn-text btn-remove-compare" data-id="${p.id}" style="font-size: 10px; color: var(--text-muted); cursor: pointer;">Remove</button>
             </th>
           `).join('')}
         </tr>
@@ -639,6 +754,11 @@ function renderCompareTable() {
         ${attributes.map(attr => `
           <tr>
             <th>${attr.label}</th>
+            ${queryImage ? `
+              <td class="compare-product-col" style="background: rgba(168, 85, 247, 0.03); border-right: 2px solid var(--border-subtle); font-weight: 500;">
+                ${attr.queryVal}
+              </td>
+            ` : ''}
             ${compareProducts.map(p => `
               <td class="compare-product-col">
                 ${attr.render ? attr.render(p) : (p[attr.key] || '—')}
@@ -654,7 +774,7 @@ function renderCompareTable() {
 // --- My Finds (Saved Products) ---
 async function toggleSaveProduct(productId) {
   const isSaved = savedProductsList.some(p => p.id === productId);
-  const product = catalog.find(p => p.id === productId);
+  const product = currentProducts.find(p => p.id === productId) || catalog.find(p => p.id === productId) || (currentBestMatch?.id === productId ? currentBestMatch : null);
 
   if (isSaved) {
     savedProductsList = await removeSavedProduct(productId);
@@ -718,7 +838,7 @@ function renderFindsList() {
         <div class="saved-item-price">₹${p.price.toLocaleString('en-IN')}</div>
       </div>
       <div class="saved-item-actions">
-        <button class="btn-secondary btn-view-store" data-url="${p.productUrl}" data-id="${p.id}" style="padding: 5px 10px; font-size: 11px;">
+        <button class="btn-secondary btn-view-store" data-url="${getLiveStoreUrl(p)}" data-id="${p.id}" style="padding: 5px 10px; font-size: 11px;">
           View
         </button>
         <button class="btn-text btn-remove-saved" data-id="${p.id}" style="color: var(--text-muted);">
@@ -793,13 +913,24 @@ function setupEventListeners() {
   document.getElementById('btn-no-matches-retry')?.addEventListener('click', triggerSelectionMode);
   document.getElementById('btn-error-retry')?.addEventListener('click', triggerSelectionMode);
 
+  // Helper to switch tab and re-render
+  window.switchTab = function(tabName) {
+    document.querySelectorAll('.tab-btn').forEach(b => {
+      if (b.getAttribute('data-tab') === tabName) {
+        b.classList.add('active');
+      } else {
+        b.classList.remove('active');
+      }
+    });
+    activeTab = tabName;
+    renderSearchResults();
+  };
+
   // Tabs
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      activeTab = btn.getAttribute('data-tab');
-      renderSearchResults();
+      const tabName = btn.getAttribute('data-tab');
+      if (tabName) window.switchTab(tabName);
     });
   });
 
@@ -914,10 +1045,13 @@ function setupEventListeners() {
     const storeBtn = e.target.closest('.btn-view-store');
     if (storeBtn) {
       e.stopPropagation();
-      const url = storeBtn.getAttribute('data-url');
+      let url = storeBtn.getAttribute('data-url');
       const id = storeBtn.getAttribute('data-id');
-      const product = catalog.find(p => p.id === id);
+      const product = currentProducts.find(p => p.id === id) || catalog.find(p => p.id === id) || (currentBestMatch?.id === id ? currentBestMatch : null);
       trackStoreClicked(product);
+      if (!url || url.includes('example.com')) {
+        url = getLiveStoreUrl(product);
+      }
       if (url) window.open(url, '_blank', 'noopener,noreferrer');
       return;
     }

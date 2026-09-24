@@ -58,6 +58,9 @@ export async function searchWithGoogleLens(imageUrl: string): Promise<Product[]>
     return visualMatches.slice(0, 20).map((match, idx) => {
       const priceNum = match.price?.extracted_value || 1499 + (idx * 250);
       const storeName = detectStoreFromUrl(match.source || match.link || '');
+      const validLink = (match.link && !match.link.includes('example.com')) 
+        ? match.link 
+        : getStoreSearchFallback(storeName, match.title || 'fashion');
 
       return {
         id: `serp_lens_${idx}_${Date.now()}`,
@@ -73,7 +76,7 @@ export async function searchWithGoogleLens(imageUrl: string): Promise<Product[]>
         rating: 4.3 + ((idx % 5) * 0.1),
         delivery: '2-3 business days',
         image: match.thumbnail || imageUrl,
-        productUrl: match.link || 'https://myntra.com',
+        productUrl: validLink,
         color: 'Visual Match',
         material: 'Premium',
         fit: 'Regular',
@@ -82,12 +85,51 @@ export async function searchWithGoogleLens(imageUrl: string): Promise<Product[]>
         sleeve: 'Standard',
         style: 'Modern',
         tags: ['google-lens', storeName.toLowerCase()],
-        matchScore: 94 - idx,
+        matchScore: Math.max(75, 96 - idx),
       };
     });
   } catch (err: any) {
     console.warn('[SerpAPI] Google Lens search failed:', err.message);
     return [];
+  }
+}
+
+export function getStoreSearchFallback(store: string, query: string): string {
+  const enc = encodeURIComponent(query);
+  const s = (store || '').toLowerCase();
+  if (s.includes('myntra')) return `https://www.myntra.com/${enc}`;
+  if (s.includes('flipkart')) return `https://www.flipkart.com/search?q=${enc}`;
+  if (s.includes('meesho')) return `https://www.meesho.com/search?q=${enc}`;
+  return `https://www.amazon.in/s?k=${enc}`;
+}
+
+export async function getGoogleLensRawResults(imageUrl: string): Promise<{ visualMatches: SerpApiMatch[]; rawData: any }> {
+  const apiKey = getSerpApiKey();
+  if (!apiKey || !imageUrl || (!imageUrl.startsWith('http://') && !imageUrl.startsWith('https://'))) {
+    return { visualMatches: [], rawData: null };
+  }
+
+  try {
+    const params = new URLSearchParams({
+      engine: 'google_lens',
+      url: imageUrl,
+      api_key: apiKey,
+      hl: 'en',
+      country: 'in'
+    });
+
+    const res = await fetch(`https://serpapi.com/search.json?${params.toString()}`, {
+      method: 'GET',
+      headers: { 'Accept': 'application/json' },
+      next: { revalidate: 300 }
+    });
+
+    if (!res.ok) return { visualMatches: [], rawData: null };
+    const data = await res.json();
+    return { visualMatches: data.visual_matches || [], rawData: data };
+  } catch (err: any) {
+    console.warn('[SerpAPI] Raw Google Lens fetch failed:', err.message);
+    return { visualMatches: [], rawData: null };
   }
 }
 

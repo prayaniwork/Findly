@@ -17,3 +17,6 @@ backend/.next/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Scratch test files
+scratch/

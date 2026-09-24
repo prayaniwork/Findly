@@ -181,19 +181,12 @@ export function filterAndRankProducts(allProducts, queryAttrs, filterOptions = {
   let isExactFallback = false;
 
   if (activeTab === 'exact') {
-    // Exact or near-identical products (matchScore >= 90% or exact match in category + subcategory + color + material)
-    let exactMatches = filtered.filter(p =>
-      p.matchScore >= 90 ||
-      (p.category === queryAttrs?.category &&
-       p.subcategory === queryAttrs?.subcategory &&
-       p.color?.toLowerCase() === queryAttrs?.color?.toLowerCase() &&
-       p.material?.toLowerCase() === queryAttrs?.material?.toLowerCase())
-    );
+    // Strict threshold: visual match score >= 92%
+    let exactMatches = filtered.filter(p => p.matchScore >= 92);
 
     if (exactMatches.length === 0) {
-      // "Couldn't find an exact match. Here are the closest alternatives."
       isExactFallback = true;
-      exactMatches = [...filtered].sort((a, b) => b.matchScore - a.matchScore).slice(0, 10);
+      exactMatches = []; // Graceful empty state: do not return unrelated 80% items
     }
     filtered = exactMatches;
   } else if (activeTab === 'cheaper') {
