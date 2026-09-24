@@ -151,12 +151,22 @@ export function filterAndRankProducts(allProducts, queryAttrs, filterOptions = {
 
   // 1. Score all products against the current query
   const scoredProducts = (allProducts || []).map(product => {
+    const isLiveMatch = product.tags?.includes('google-lens') || 
+                        product.tags?.includes('google-shopping') || 
+                        (typeof product.id === 'string' && (product.id.startsWith('lens_') || product.id.startsWith('serp_')));
+
     const match = calculateMatchScore(queryAttrs, product, { referencePrice });
+
+    // Preserve high match score for real live visual matches from Google Lens / Google Shopping
+    const finalScore = isLiveMatch 
+      ? Math.max(product.matchScore || 90, match.score)
+      : match.score;
+
     return {
       ...product,
-      matchScore: match.score,
-      matchReason: match.summaryReason,
-      matchReasons: match.detailedBreakdown
+      matchScore: finalScore,
+      matchReason: product.matchReason || match.summaryReason,
+      matchReasons: product.matchReasons || match.detailedBreakdown
     };
   });
 
@@ -215,12 +225,20 @@ export function filterAndRankProducts(allProducts, queryAttrs, filterOptions = {
   // 4. Sorting
   const sortBy = filterOptions.sortBy || 'best-match';
   filtered.sort((a, b) => {
+    const aLive = a.tags?.includes('google-lens') || a.tags?.includes('google-shopping') || (typeof a.id === 'string' && (a.id.startsWith('lens_') || a.id.startsWith('serp_')));
+    const bLive = b.tags?.includes('google-lens') || b.tags?.includes('google-shopping') || (typeof b.id === 'string' && (b.id.startsWith('lens_') || b.id.startsWith('serp_')));
+
     if (sortBy === 'price-asc') {
       return a.price - b.price;
     }
     if (sortBy === 'price-desc') {
       return b.price - a.price;
     }
+
+    // Live visual search matches should always be prioritized first
+    if (aLive && !bLive) return -1;
+    if (!aLive && bLive) return 1;
+
     // Default: best match score descending, then rating descending
     if (b.matchScore !== a.matchScore) {
       return b.matchScore - a.matchScore;

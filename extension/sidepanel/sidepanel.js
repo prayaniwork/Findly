@@ -394,10 +394,10 @@ function renderProductGrid(products, bestMatch) {
   }
 
   if (heading) {
-    heading.textContent = activeTab === 'cheaper' ? 'VALUE ALTERNATIVES' :
-                          activeTab === 'premium' ? 'PREMIUM TIERS' :
-                          activeTab === 'exact' ? 'EXACT MATCHES' :
-                          'FEATURED MATCHES';
+    heading.textContent = activeTab === 'cheaper' ? 'Cheaper Alternatives' :
+                          activeTab === 'premium' ? 'Designer & Premium Styles' :
+                          activeTab === 'exact' ? 'Exact & Near Matches' :
+                          'Similar finds';
   }
 
   if (countBadge) {
@@ -557,7 +557,7 @@ function openProductDetail(productId) {
     </div>
 
     <div class="detail-section">
-      <div class="detail-section-title">WHY IT MATCHES</div>
+      <div class="detail-section-title">Why this matches</div>
       <div class="detail-attributes-list">
         ${reasons.map(r => `
           <div class="detail-attribute-item">
@@ -569,7 +569,7 @@ function openProductDetail(productId) {
     </div>
 
     <div class="detail-section">
-      <div class="detail-section-title">AVAILABLE ON</div>
+      <div class="detail-section-title">Available on</div>
       <div class="available-store-card">
         <div class="available-store-info">
           <span class="available-store-name">${product.store}</span>
@@ -671,7 +671,7 @@ function renderCompareTable() {
   const attributes = [
     {
       label: 'Store',
-      queryVal: '<span class="store-badge-pill" style="background: var(--accent-lime); color: #000000; font-weight: 700;">Target Style</span>',
+      queryVal: '<span class="store-badge-pill" style="background: rgba(168, 85, 247, 0.15); color: var(--accent-purple);">Target Style</span>',
       render: p => `<span class="store-badge-pill ${p.store.toLowerCase()}">${p.store}</span>`
     },
     {
@@ -731,12 +731,12 @@ function renderCompareTable() {
         <tr>
           <th>Attribute</th>
           ${queryImage ? `
-            <th class="compare-product-col" style="background: rgba(210, 245, 53, 0.08); border-right: 2px solid var(--border-subtle);">
+            <th class="compare-product-col" style="background: rgba(168, 85, 247, 0.05); border-right: 2px solid var(--border-subtle);">
               <div class="compare-thumb-wrap">
-                <img src="${queryImage}" alt="Selected Image" class="compare-thumb" style="border: 2px solid var(--accent-lime);">
+                <img src="${queryImage}" alt="Selected Image" class="compare-thumb" style="border: 2px solid var(--accent-purple);">
               </div>
-              <div class="compare-product-name" style="color: var(--text-primary); font-weight: 700;">Selected Pin</div>
-              <span style="font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em;">Target Image</span>
+              <div class="compare-product-name" style="color: var(--accent-purple); font-weight: 600;">Selected Pin</div>
+              <span style="font-size: 10px; color: var(--text-muted);">Target Image</span>
             </th>
           ` : ''}
           ${compareProducts.map(p => `

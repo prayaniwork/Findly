@@ -190,7 +190,7 @@ export async function searchWithGoogleShopping(query: string): Promise<Product[]
         sleeve: 'Standard',
         style: 'Casual',
         tags: ['google-shopping', storeName.toLowerCase()],
-        matchScore: 92 - idx,
+        matchScore: Math.max(70, 96 - idx),
       };
     });
   } catch (err: any) {

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { ImageAnalysis } from '../../../lib/matching';
-import { getGoogleLensRawResults, getStoreSearchFallback, SerpApiMatch } from '../../../lib/serpapi';
+import { getGoogleLensRawResults, getStoreSearchFallback, searchWithGoogleShopping, SerpApiMatch } from '../../../lib/serpapi';
 import { Product } from '../../../lib/dataset';
 
 export async function POST(request: Request) {
@@ -73,6 +73,22 @@ export async function POST(request: Request) {
 
     // 3. Extract Garment Attributes dynamically
     const analysis = extractAttributes(combinedContextText, dominantColor);
+
+    // 4. Fallback: If Google Lens returned 0 matches (e.g. Pinterest blocks external Google Lens with 403),
+    // query SerpAPI Google Shopping using the contextual signals (alt text, pin title, extracted category)
+    if (visualMatches.length === 0) {
+      const shoppingQuery = (context?.alt || context?.title || `${analysis.color || dominantColor || ''} ${analysis.subcategory || ''} ${analysis.category || ''}`).trim();
+      if (shoppingQuery) {
+        try {
+          const shoppingItems = await searchWithGoogleShopping(shoppingQuery);
+          if (shoppingItems && shoppingItems.length > 0) {
+            visualMatches = shoppingItems;
+          }
+        } catch (err: any) {
+          console.warn('[analyze-image] Google Shopping fallback error:', err.message);
+        }
+      }
+    }
 
     return NextResponse.json({
       ...analysis,
